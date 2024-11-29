@@ -1,0 +1,367 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gyurcsány Snake 2.0</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #1e1e2f;
+            font-family: Arial, sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Canvas and Game Area */
+        canvas {
+            display: block;
+            margin: auto;
+            background-color: black;
+            border: 5px solid #61dafb;
+            position: relative;
+        }
+
+        #canvasContainer {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Overlay menu */
+        #menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        #menu h1 {
+            margin-bottom: 20px;
+        }
+
+        #menu button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #61dafb;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #menu button:hover {
+            background-color: #21a1f1;
+        }
+
+        #menu p {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+
+        /* Music Link Box */
+        #musicLink {
+            margin-top: 10px;
+            padding: 10px 15px;
+            background-color: #61dafb;
+            color: #000;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        #musicLink a {
+            text-decoration: none;
+            color: #000;
+            font-weight: bold;
+        }
+
+        #controlInfo {
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        /* Game Background Text */
+        .backgroundText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Made by Box */
+        #madeBy {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #61dafb;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.5;
+            z-index: 0;
+        }
+
+        #madeBy span {
+            display: block;
+        }
+
+        /* Overlay for Game Over */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .overlayText {
+            color: white;
+            text-align: center;
+        }
+
+        .overlayText h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+
+        .overlayText p {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+        }
+
+        .overlayText button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #61dafb;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .overlayText button:hover {
+            background-color: #21a1f1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu Overlay -->
+    <div id="menu">
+        <h1>Gyurcsány Snake 2.0</h1>
+        <button id="playButton">Play</button>
+        <p id="scoreDisplay"></p>
+    </div>
+
+    <!-- Game Area -->
+    <div id="canvasContainer">
+        <div class="backgroundText">Szavazókörök</div>
+        <canvas id="gameCanvas" width="800" height="800"></canvas>
+        <div id="musicLink">
+            <a href="https://youtu.be/lm4pKnTQyss?si=nIgEqTOSnijbXKOV" target="_blank">Eredeti muzsika itt</a>
+            <div id="controlInfo">Irányítás a nyilakkal vagy WASD-vel.</div>
+        </div>
+    </div>
+
+    <!-- Made By Box -->
+    <div id="madeBy">
+        <span>Made by:</span>
+        <span>ZErosites Studio</span>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="bgMusic" loop>
+        <source src="background.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="coinSound">
+        <source src="coin.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const menu = document.getElementById("menu");
+        const playButton = document.getElementById("playButton");
+        const scoreDisplay = document.getElementById("scoreDisplay");
+        const bgMusic = document.getElementById("bgMusic");
+        const coinSound = document.getElementById("coinSound");
+
+        let snake, direction, food, score, gameRunning, speed, specialCoins;
+        const gridSize = 20;
+        const snakeHeadImage = new Image();
+        snakeHeadImage.src = "face.png";
+        const coinImage = new Image();
+        coinImage.src = "coin.png";
+
+        function startGame() {
+            // Reset game state
+            snake = [{ x: 400, y: 400 }];
+            direction = { x: 0, y: -1 };
+            food = createFood(4); // Start with 4 coins
+            score = 0;
+            speed = 120; // Slightly slower initial speed
+            specialCoins = [];
+            gameRunning = true;
+
+            menu.style.display = "none";
+            bgMusic.currentTime = 0;
+            bgMusic.play();
+
+            gameLoop();
+        }
+
+        function createFood(count) {
+            let foodArray = [];
+            for (let i = 0; i < count; i++) {
+                foodArray.push({
+                    x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize,
+                    y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize,
+                    special: false
+                });
+            }
+            return foodArray;
+        }
+
+        function randomRareEvent() {
+            return Math.random() < 0.02;
+        }
+
+        function gameLoop() {
+            if (gameRunning) {
+                updateGame();
+                renderGame();
+                setTimeout(gameLoop, speed);
+            }
+        }
+
+        function updateGame() {
+            const head = { x: snake[0].x + direction.x * gridSize, y: snake[0].y + direction.y * gridSize };
+
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+                endGame();
+                return;
+            }
+
+            for (let segment of snake) {
+                if (segment.x === head.x && segment.y === head.y) {
+                    endGame();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Check for food collision
+            for (let i = 0; i < food.length; i++) {
+                if (head.x === food[i].x && head.y === food[i].y) {
+                    coinSound.play();
+                    score++;
+                    if (food[i].special) {
+                        specialCoins.push(food[i]); // Add the special coin to the special coins array
+                    }
+                    food[i] = randomRareEvent() ? { 
+                        x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize, 
+                        y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize, 
+                        special: true 
+                    } : {
+                        x: Math.floor(Math.random() * (canvas.width / gridSize)) * gridSize,
+                        y: Math.floor(Math.random() * (canvas.height / gridSize)) * gridSize,
+                        special: false
+                    };
+                    if (!food[i].special) snake.push({ x: head.x, y: head.y }); // Only grow the snake for regular coins
+                }
+            }
+
+            // Remove tail
+            snake.pop();
+        }
+
+        function renderGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw food
+            food.forEach(item => {
+                ctx.drawImage(coinImage, item.x, item.y, gridSize, gridSize);
+            });
+
+            // Draw snake
+            ctx.save();
+            ctx.translate(snake[0].x + gridSize / 2, snake[0].y + gridSize / 2);
+            ctx.rotate(direction.x === 1 ? Math.PI / 2 : direction.x === -1 ? -Math.PI / 2 : direction.y === 1 ? Math.PI : 0);
+            ctx.drawImage(snakeHeadImage, -gridSize / 2, -gridSize / 2, gridSize, gridSize);
+            ctx.restore();
+
+            // Draw score
+            scoreDisplay.textContent = `Családi pótlék megemelve ${score}00 Ft-al`;
+
+            // Draw snake body
+            ctx.fillStyle = "#ffffff";
+            for (let i = 1; i < snake.length; i++) {
+                ctx.fillRect(snake[i].x, snake[i].y, gridSize, gridSize);
+            }
+        }
+
+        function endGame() {
+            gameRunning = false;
+            bgMusic.pause();
+
+            // Display game over screen
+            const overlay = document.createElement("div");
+            overlay.classList.add("overlay");
+
+            const overlayText = document.createElement("div");
+            overlayText.classList.add("overlayText");
+            overlayText.innerHTML = `
+                <h1>Game Over!</h1>
+                <p>Családi pótlék megemelve ${score}00 Ft-al</p>
+                <button onclick="restartGame()">Restart</button>
+            `;
+
+            overlay.appendChild(overlayText);
+            document.body.appendChild(overlay);
+        }
+
+        function restartGame() {
+            document.location.reload();
+        }
+
+        playButton.addEventListener("click", startGame);
+
+        // Add keyboard controls
+        window.addEventListener("keydown", function(event) {
+            if (event.key === "ArrowUp" || event.key === "w") {
+                if (direction.y !== 1) direction = { x: 0, y: -1 };
+            } else if (event.key === "ArrowDown" || event.key === "s") {
+                if (direction.y !== -1) direction = { x: 0, y: 1 };
+            } else if (event.key === "ArrowLeft" || event.key === "a") {
+                if (direction.x !== 1) direction = { x: -1, y: 0 };
+            } else if (event.key === "ArrowRight" || event.key === "d") {
+                if (direction.x !== -1) direction = { x: 1, y: 0 };
+            }
+        });
+    </script>
+
+<script src="https://static.app/js/static.js" type="text/javascript"></script>
+</body>
+</html>
